@@ -5,11 +5,13 @@ VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SimpleReverseShell", "SimpleReverseShell\SimpleReverseShell.csproj", "{0A1133F7-01F0-453B-A034-CA771A1D45DF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Win32Imports", "Win32Imports\Win32Imports.csproj", "{6B1930F9-B929-41FB-8D3B-D187BC0EBD08}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Win32Imports", "Win32Imports\Win32Imports.csproj", "{6B1930F9-B929-41FB-8D3B-D187BC0EBD08}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EvasiveShell_SocketCreation", "EvasiveShell\EvasiveShell_SocketCreation.csproj", "{621E1D98-847D-4D7B-8333-F3B3291C4744}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EvasiveShell_SocketCreation", "EvasiveShell\EvasiveShell_SocketCreation.csproj", "{621E1D98-847D-4D7B-8333-F3B3291C4744}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EvasiveShell_SocketReader", "EvasiveShell_SocketReader\EvasiveShell_SocketReader.csproj", "{542C9B5B-D2F1-4040-B4BD-D213E7451327}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EvasiveShell_SocketReader", "EvasiveShell_SocketReader\EvasiveShell_SocketReader.csproj", "{542C9B5B-D2F1-4040-B4BD-D213E7451327}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SocketSerializationTesting", "SocketSerializationTesting\SocketSerializationTesting.csproj", "{C717A1BC-BF3C-40BB-8CDA-2BF61E00C22B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{542C9B5B-D2F1-4040-B4BD-D213E7451327}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{542C9B5B-D2F1-4040-B4BD-D213E7451327}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{542C9B5B-D2F1-4040-B4BD-D213E7451327}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C717A1BC-BF3C-40BB-8CDA-2BF61E00C22B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C717A1BC-BF3C-40BB-8CDA-2BF61E00C22B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C717A1BC-BF3C-40BB-8CDA-2BF61E00C22B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C717A1BC-BF3C-40BB-8CDA-2BF61E00C22B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

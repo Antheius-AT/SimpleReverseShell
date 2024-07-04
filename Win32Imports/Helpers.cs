@@ -17,6 +17,19 @@ namespace Win32Imports
       PrintLastError(nameof(WSAStartup), true);
     }
 
+    public static string GetIP()
+    {
+      var ip = Environment.GetEnvironmentVariable("MA_ServerIP", EnvironmentVariableTarget.User);
+
+      if (string.IsNullOrWhiteSpace(ip))
+      {
+        Console.WriteLine("Enter IP: ");
+        ip = Console.ReadLine();
+      }
+
+      return ip;
+    }
+
     public static void PrintLastError(string method, bool throwIfError = false)
     {
       var lastError = WSAGetLastError();
