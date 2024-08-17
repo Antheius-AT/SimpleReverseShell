@@ -226,7 +226,7 @@
       //Environment.SetEnvironmentVariable("TESTTESTTEST", intRepresentationSocket.ToString(), EnvironmentVariableTarget.User);
       //Console.WriteLine("Socket in Registry serialisiert");
 
-      // Socket in File schreiben
+      //Socket in File schreiben
       //File.WriteAllText("test.txt", intRepresentationSocket.ToString());
       //Console.WriteLine("Socket serialisiert ohne detection");
       //var serialized = Environment.GetEnvironmentVariable("TESTTESTTEST", EnvironmentVariableTarget.User);
