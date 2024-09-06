@@ -19,7 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BasicShell.c" />
+    <ClCompile Include="..\..\SimpleCShell\SimpleCShell\debugtest.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="peb-lookup.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
